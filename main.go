@@ -131,6 +131,44 @@ type Config struct {
 	BackupURLs []string `json:"backups"`
 	WebhookURL string   `json:"webhookURL"`
 }
+// SendDiscordWebhook sends a message to the specified Discord webhook URL
+func SendDiscordWebhook(webhookURL, message string) error {
+	if webhookURL == "" {
+		return nil
+	}
+
+	payload := map[string]string{
+		"content": message,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("webhook request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Discord returns 204 No Content on success
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusOK {
+		// Handle rate limiting
+		if retryAfter := resp.Header.Get("Retry-After"); retryAfter != "" {
+			var seconds int
+			fmt.Sscanf(retryAfter, "%d", &seconds)
+			if seconds > 0 {
+				time.Sleep(time.Duration(seconds+1) * time.Second)
+			}
+		}
+		return nil
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("webhook failed with status %d: %s", resp.StatusCode, string(body))
+}
+
 // downloadFile downloads a file from a URL and saves it to a local file
 func downloadFile(url, filename string, run, hide bool) error {
 	resp, err := http.Get(url)
